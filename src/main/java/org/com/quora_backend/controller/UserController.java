@@ -1,5 +1,6 @@
 package org.com.quora_backend.controller;
 
+import jakarta.validation.Valid;
 import org.com.quora_backend.dto.user.CreateUserRequest;
 import org.com.quora_backend.dto.user.UpdateUserRequest;
 import org.com.quora_backend.dto.user.UserResponse;
@@ -17,7 +18,7 @@ public class UserController {
         this.userService=userService;
     }
     @PostMapping
-    public ResponseEntity<UserResponse> createUser(@RequestBody CreateUserRequest request){
+    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request){
         UserResponse response  = userService.createUser(request);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -30,7 +31,7 @@ public class UserController {
     }
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> updateUser(@PathVariable Long id,
-                                                   @RequestBody UpdateUserRequest updateUserRequest){
+                                                   @Valid @RequestBody UpdateUserRequest updateUserRequest){
         UserResponse response = userService.updateUser(id,updateUserRequest);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

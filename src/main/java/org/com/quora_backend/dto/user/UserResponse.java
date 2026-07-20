@@ -2,15 +2,16 @@ package org.com.quora_backend.dto.user;
 
 import lombok.*;
 
-import java.time.LocalDateTime;
-
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserResponse {
+
     private Long id;
+
+    private String username;
 
     private String name;
 
@@ -18,7 +19,4 @@ public class UserResponse {
 
     private String bio;
 
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
 }
