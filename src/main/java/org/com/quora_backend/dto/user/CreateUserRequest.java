@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -15,8 +17,8 @@ public class CreateUserRequest {
 
     @NotBlank(message = "Username cannot be blank")
 
-    @Size(min = 4, max = 20,
-            message = "Username must be between 4 and 20 characters")
+    @Size(min = 2, max = 20,
+            message = "Username must be between 2 and 20 characters")
 
     @Pattern(
             regexp = "^[A-Za-z][A-Za-z0-9_]*$",
