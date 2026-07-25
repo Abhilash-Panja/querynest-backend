@@ -1,13 +1,17 @@
 package org.com.quora_backend.controller;
 
 import jakarta.validation.Valid;
+import org.com.quora_backend.dto.question.QuestionSearchResponse;
 import org.com.quora_backend.dto.user.CreateUserRequest;
+import org.com.quora_backend.dto.user.UpdateUserPatchRequest;
 import org.com.quora_backend.dto.user.UpdateUserRequest;
 import org.com.quora_backend.dto.user.UserResponse;
 import org.com.quora_backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -35,9 +39,20 @@ public class UserController {
         UserResponse response = userService.updateUser(id,updateUserRequest);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
+    @PatchMapping("/{id}")
+    public ResponseEntity<UserResponse> patchUser(@PathVariable Long id,
+                                                  @Valid @RequestBody UpdateUserPatchRequest request){
+        UserResponse response = userService.patchUser(id, request);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id){
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
+    }
+    @GetMapping("/{id}/questions")
+    public ResponseEntity<List<QuestionSearchResponse>> getUserQuestions(@PathVariable Long id){
+        List<QuestionSearchResponse> response = userService.getUserQuestions(id);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }
