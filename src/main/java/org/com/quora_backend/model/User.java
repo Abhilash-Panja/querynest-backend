@@ -2,8 +2,12 @@ package org.com.quora_backend.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -23,4 +27,8 @@ public class User extends  BaseModel{
     private String username;
 
     private String bio;
+    @OneToMany(mappedBy="user")
+    List<Question>questions;
+    @OneToMany(mappedBy="user")
+    List<Answer> answers=new ArrayList<>();
 }
