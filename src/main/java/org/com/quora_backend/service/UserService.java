@@ -1,11 +1,11 @@
 package org.com.quora_backend.service;
 
 
+import org.com.quora_backend.dto.answer.AnswerCountResponse;
+import org.com.quora_backend.dto.answer.AnswerResponse;
+import org.com.quora_backend.dto.question.QuestionCountResponse;
 import org.com.quora_backend.dto.question.QuestionSearchResponse;
-import org.com.quora_backend.dto.user.CreateUserRequest;
-import org.com.quora_backend.dto.user.UpdateUserPatchRequest;
-import org.com.quora_backend.dto.user.UpdateUserRequest;
-import org.com.quora_backend.dto.user.UserResponse;
+import org.com.quora_backend.dto.user.*;
 
 import java.util.List;
 
@@ -22,4 +22,14 @@ public interface UserService  {
     void deleteUser(Long id);
 
     List<QuestionSearchResponse> getUserQuestions(Long id);
+
+    List<AnswerResponse> getUserAnswers(Long id);
+
+    UsernameAvailabilityResponse checkUsernameAvailability(String username);
+
+    EmailAvailabilityResponse checkEmailAvailability(String email);
+
+    QuestionCountResponse getUserQuestionCount(Long id);
+
+    AnswerCountResponse getUserAnswerCount(Long id);
 }

@@ -4,6 +4,8 @@ import org.com.quora_backend.dto.question.CreateQuestionRequest;
 import org.com.quora_backend.dto.question.QuestionResponse;
 import org.com.quora_backend.dto.question.QuestionSearchResponse;
 import org.com.quora_backend.dto.question.UpdateQuestionRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -22,6 +24,6 @@ public interface QuestionService {
 
     List<QuestionSearchResponse> searchQuestions(String keyword);
 
-
+    Page<QuestionResponse> getAllQuestions(Pageable pageable);
 
 }

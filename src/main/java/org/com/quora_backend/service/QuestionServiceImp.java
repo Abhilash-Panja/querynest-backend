@@ -13,6 +13,8 @@ import org.com.quora_backend.model.Question;
 import org.com.quora_backend.model.User;
 import org.com.quora_backend.repository.QuestionRepository;
 import org.com.quora_backend.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -66,6 +68,9 @@ public class QuestionServiceImp implements QuestionService{
                 .map(questionMapper::toSearchResponse)
                 .toList();
     }
-
-
+    @Override
+    public Page<QuestionResponse> getAllQuestions(Pageable pageable) {
+        Page<Question> questions = questionRepository.findAll(pageable);
+        return questions.map(questionMapper::toResponse);
+    }
 }
