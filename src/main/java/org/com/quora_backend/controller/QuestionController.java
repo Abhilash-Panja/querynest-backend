@@ -7,6 +7,10 @@ import org.com.quora_backend.dto.question.QuestionResponse;
 import org.com.quora_backend.dto.question.QuestionSearchResponse;
 import org.com.quora_backend.dto.question.UpdateQuestionRequest;
 import org.com.quora_backend.service.QuestionService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,14 +23,14 @@ import java.util.List;
 public class QuestionController {
     private final QuestionService questionService;
     @PostMapping
-    public ResponseEntity<QuestionResponse> createUser(@Valid @RequestBody CreateQuestionRequest request){
+    public ResponseEntity<QuestionResponse> createQuestion(@Valid @RequestBody CreateQuestionRequest request){
         QuestionResponse response  = questionService.createQuestion(request);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
     @GetMapping("/{id}")
-    public ResponseEntity<QuestionResponse> getUser(@PathVariable Long id){
+    public ResponseEntity<QuestionResponse> getQuestionById(@PathVariable Long id){
         QuestionResponse response = questionService.getQuestionById(id);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
@@ -46,5 +50,10 @@ public class QuestionController {
         List<QuestionSearchResponse> response = questionService.searchQuestions(keyword);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
-
+    @GetMapping
+    public ResponseEntity<Page<QuestionResponse>> getAllQuestions(
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
+        Page<QuestionResponse> response = questionService.getAllQuestions(pageable);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
 }

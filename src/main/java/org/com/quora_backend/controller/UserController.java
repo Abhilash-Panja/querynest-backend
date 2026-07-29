@@ -1,11 +1,11 @@
 package org.com.quora_backend.controller;
 
 import jakarta.validation.Valid;
+import org.com.quora_backend.dto.answer.AnswerCountResponse;
+import org.com.quora_backend.dto.answer.AnswerResponse;
+import org.com.quora_backend.dto.question.QuestionCountResponse;
 import org.com.quora_backend.dto.question.QuestionSearchResponse;
-import org.com.quora_backend.dto.user.CreateUserRequest;
-import org.com.quora_backend.dto.user.UpdateUserPatchRequest;
-import org.com.quora_backend.dto.user.UpdateUserRequest;
-import org.com.quora_backend.dto.user.UserResponse;
+import org.com.quora_backend.dto.user.*;
 import org.com.quora_backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -53,6 +53,31 @@ public class UserController {
     @GetMapping("/{id}/questions")
     public ResponseEntity<List<QuestionSearchResponse>> getUserQuestions(@PathVariable Long id){
         List<QuestionSearchResponse> response = userService.getUserQuestions(id);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+    @GetMapping("/{id}/answers")
+    public ResponseEntity<List<AnswerResponse>> getUserAnswers(@PathVariable Long id){
+        List<AnswerResponse> response = userService.getUserAnswers(id);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+    @GetMapping("/check-username")
+    public ResponseEntity<UsernameAvailabilityResponse> checkUsername(@RequestParam String username){
+        UsernameAvailabilityResponse response = userService.checkUsernameAvailability(username);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+    @GetMapping("/check-email")
+    public ResponseEntity<EmailAvailabilityResponse> checkEmail(@RequestParam String email){
+        EmailAvailabilityResponse response = userService.checkEmailAvailability(email);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+    @GetMapping("/{id}/question-count")
+    public ResponseEntity<QuestionCountResponse> getUserQuestionCount(@PathVariable Long id){
+        QuestionCountResponse response = userService.getUserQuestionCount(id);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+    @GetMapping("/{id}/answer-count")
+    public ResponseEntity<AnswerCountResponse> getUserAnswerCount(@PathVariable Long id){
+        AnswerCountResponse response = userService.getUserAnswerCount(id);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }
