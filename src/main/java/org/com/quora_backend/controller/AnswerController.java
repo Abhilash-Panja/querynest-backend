@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import org.com.quora_backend.dto.answer.AnswerResponse;
 import org.com.quora_backend.dto.answer.CreateAnswerRequest;
 import org.com.quora_backend.dto.answer.UpdateAnswerRequest;
+import org.com.quora_backend.dto.vote.VoteRequest;
 import org.com.quora_backend.service.AnswerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,5 +50,14 @@ public class AnswerController {
 
         answerService.deleteAnswer(id, userId);
         return ResponseEntity.noContent().build();
+    }
+    @PostMapping("/answers/{id}/vote")
+    public ResponseEntity<AnswerResponse> voteAnswer(
+            @PathVariable Long id,                      // ← from URL path: /answers/{id}/vote
+            @RequestHeader("X-User-Id") Long userId,     // ← from HEADER: X-User-Id
+            @Valid @RequestBody VoteRequest request){    // ← from BODY: { "voteType": "UPVOTE" }
+        AnswerResponse response = answerService.voteAnswer(id,userId,request);
+        System.out.println("Answer Id received = " + id);
+        return ResponseEntity.ok(response);
     }
 }

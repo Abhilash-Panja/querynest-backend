@@ -22,4 +22,7 @@ public class Answer extends BaseModel{
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+    @Column(name = "vote_score", nullable = false)
+    @Builder.Default
+    private int voteScore = 0;
 }
