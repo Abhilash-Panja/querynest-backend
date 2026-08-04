@@ -1,13 +1,18 @@
 package org.com.quora_backend.mapper;
 
+import lombok.AllArgsConstructor;
 import org.com.quora_backend.dto.user.CreateUserRequest;
 import org.com.quora_backend.dto.user.UserResponse;
 import org.com.quora_backend.dto.user.UserSummaryResponse;
+import org.com.quora_backend.model.Role;
 import org.com.quora_backend.model.User;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
+@AllArgsConstructor
 public class UserMapper {
+    private final PasswordEncoder passwordEncoder;
     public UserSummaryResponse toUserSummaryResponse(User user) {
         if (user == null) return null;
         return UserSummaryResponse.builder()
@@ -29,12 +34,14 @@ public class UserMapper {
                 .build();
     }
 
-    public User toEntity(CreateUserRequest createUserRequest){
+    public User toEntity(CreateUserRequest request) {
         return User.builder()
-                .username(createUserRequest.getUsername())
-                .email(createUserRequest.getEmail())
-                .bio(createUserRequest.getBio())
-                .name(createUserRequest.getName())
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .bio(request.getBio())
+                .name(request.getName())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.USER)
                 .build();
     }
 }
