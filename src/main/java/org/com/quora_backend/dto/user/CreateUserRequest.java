@@ -6,8 +6,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
-import java.time.LocalDateTime;
-
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -35,4 +33,8 @@ public class CreateUserRequest {
 
     @Size(min = 10, max = 100, message = "Bio should contain 10-100 characters")
     private String bio;
+
+    @NotBlank(message = "Password cannot be blank")
+    @Size(min = 8, message = "Password must be at least 8 characters")
+    private String password;
 }
