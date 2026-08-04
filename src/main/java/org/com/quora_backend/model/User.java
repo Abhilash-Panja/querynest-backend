@@ -1,9 +1,6 @@
 package org.com.quora_backend.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.ArrayList;
@@ -16,7 +13,7 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "users")
-public class User extends  BaseModel{
+public class User extends BaseModel {
     @Column(nullable = false)
     private String name;
 
@@ -27,8 +24,17 @@ public class User extends  BaseModel{
     private String username;
 
     private String bio;
-    @OneToMany(mappedBy="user")
-    List<Question>questions;
-    @OneToMany(mappedBy="user")
-    List<Answer> answers=new ArrayList<>();
+
+    @Column(nullable = false)
+    private String password;   // stores the BCrypt hash, never the raw value
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
+    @OneToMany(mappedBy = "user")
+    List<Question> questions;
+
+    @OneToMany(mappedBy = "user")
+    List<Answer> answers = new ArrayList<>();
 }
