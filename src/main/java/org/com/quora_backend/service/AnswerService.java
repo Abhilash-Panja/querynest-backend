@@ -21,4 +21,6 @@ public interface AnswerService {
     Answer findAnswerById(Long id);
 
     AnswerResponse voteAnswer(Long answerId, Long userId, VoteRequest request);
+
+    boolean isOwnedByCurrentUser(Long answerId, Long userId);
 }

@@ -6,9 +6,12 @@ import org.com.quora_backend.dto.answer.AnswerResponse;
 import org.com.quora_backend.dto.answer.CreateAnswerRequest;
 import org.com.quora_backend.dto.answer.UpdateAnswerRequest;
 import org.com.quora_backend.dto.vote.VoteRequest;
+import org.com.quora_backend.security.UserPrincipal;
 import org.com.quora_backend.service.AnswerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,9 +25,9 @@ public class AnswerController {
     public ResponseEntity<AnswerResponse> createAnswer(
             @PathVariable Long questionId,
             @Valid @RequestBody CreateAnswerRequest request,
-            @RequestHeader("X-User-Id") Long userId) {
+            @AuthenticationPrincipal UserPrincipal principal) {
 
-        AnswerResponse response = answerService.createAnswer(request, userId, questionId);
+        AnswerResponse response = answerService.createAnswer(request, principal.getUser().getId(), questionId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -35,29 +38,33 @@ public class AnswerController {
     }
 
     @PutMapping("/answers/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @answerService.isOwnedByCurrentUser(#id, principal.user.id)")
     public ResponseEntity<AnswerResponse> updateAnswer(
             @PathVariable Long id,
             @Valid @RequestBody UpdateAnswerRequest request,
-            @RequestHeader("X-User-Id") Long userId) {
+            @AuthenticationPrincipal UserPrincipal principal) {
 
-        AnswerResponse response = answerService.updateAnswer(id, request, userId);
+        AnswerResponse response = answerService.updateAnswer(id, request, principal.getUser().getId());
         return ResponseEntity.ok(response);
     }
-    @DeleteMapping("/answers/{id}")
-    public  ResponseEntity<Void> deleteAnswer(
-            @PathVariable Long id,
-            @RequestHeader("X-User-Id") Long userId) {
 
-        answerService.deleteAnswer(id, userId);
+    @DeleteMapping("/answers/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @answerService.isOwnedByCurrentUser(#id, principal.user.id)")
+    public ResponseEntity<Void> deleteAnswer(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        answerService.deleteAnswer(id, principal.getUser().getId());
         return ResponseEntity.noContent().build();
     }
+
     @PostMapping("/answers/{id}/vote")
     public ResponseEntity<AnswerResponse> voteAnswer(
-            @PathVariable Long id,                      // ← from URL path: /answers/{id}/vote
-            @RequestHeader("X-User-Id") Long userId,     // ← from HEADER: X-User-Id
-            @Valid @RequestBody VoteRequest request){    // ← from BODY: { "voteType": "UPVOTE" }
-        AnswerResponse response = answerService.voteAnswer(id,userId,request);
-        System.out.println("Answer Id received = " + id);
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody VoteRequest request) {
+
+        AnswerResponse response = answerService.voteAnswer(id, principal.getUser().getId(), request);
         return ResponseEntity.ok(response);
     }
 }

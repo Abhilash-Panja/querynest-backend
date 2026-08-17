@@ -26,4 +26,5 @@ public interface QuestionService {
 
     Page<QuestionResponse> getAllQuestions(Pageable pageable);
 
+    boolean isOwnedByCurrentUser(Long questionId, Long userId);
 }

@@ -128,6 +128,12 @@ public class AnswerServiceImpl implements AnswerService {
         if (voteType == null) return 0;
         return voteType == VoteType.UPVOTE ? 1 : -1;
     }
+    @Override
+    public boolean isOwnedByCurrentUser(Long answerId, Long userId) {
+        return answerRepository.findById(answerId)
+                .map(answer -> answer.getUser().getId().equals(userId))
+                .orElse(false);
+    }
 
     private int calculateNewScore(int currentScore, VoteType oldVote, VoteType newVote) {
         int oldContribution = contributionOf(oldVote);
