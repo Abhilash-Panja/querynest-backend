@@ -13,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,12 +36,14 @@ public class QuestionController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @questionService.isOwnedByCurrentUser(#id, authentication.principal.user.id)")
     public ResponseEntity<QuestionResponse> updateQuestion(@PathVariable Long id,
-                                                       @Valid @RequestBody UpdateQuestionRequest updateQuestionRequest){
-        QuestionResponse response = questionService.updateQuestion(id,updateQuestionRequest);
+                                                           @Valid @RequestBody UpdateQuestionRequest updateQuestionRequest){
+        QuestionResponse response = questionService.updateQuestion(id, updateQuestionRequest);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @questionService.isOwnedByCurrentUser(#id, authentication.principal.user.id)")
     public ResponseEntity<Void> deletequestionById(@PathVariable Long id){
         questionService.deletequestionById(id);
         return ResponseEntity.noContent().build();

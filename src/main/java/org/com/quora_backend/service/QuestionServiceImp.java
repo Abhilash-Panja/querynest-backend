@@ -73,4 +73,12 @@ public class QuestionServiceImp implements QuestionService{
         Page<Question> questions = questionRepository.findAll(pageable);
         return questions.map(questionMapper::toResponse);
     }
+
+    @Override
+    public boolean isOwnedByCurrentUser(Long questionId, Long userId) {
+        return questionRepository.findById(questionId)
+                .map(question -> question.getUser().getId().equals(userId))
+                .orElse(false); // question doesn't exist → let the method run,
+        // it will 404 naturally rather than 403
+    }
 }
