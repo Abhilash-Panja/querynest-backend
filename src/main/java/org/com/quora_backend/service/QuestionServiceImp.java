@@ -45,9 +45,9 @@ public class QuestionServiceImp implements QuestionService{
     }
 
     @Override
-    public QuestionResponse createQuestion(CreateQuestionRequest request) {
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new UserNotFoundException(request.getUserId()));
+    public QuestionResponse createQuestion(CreateQuestionRequest request, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         Question question = questionMapper.toEntity(request, user);
 

@@ -17,6 +17,4 @@ public class CreateQuestionRequest {
 
     @NotBlank(message = "description cannot be blank")
     private String description;
-
-    private Long userId;
 }

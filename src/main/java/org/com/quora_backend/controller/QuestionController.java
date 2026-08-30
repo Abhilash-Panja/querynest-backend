@@ -6,6 +6,7 @@ import org.com.quora_backend.dto.question.CreateQuestionRequest;
 import org.com.quora_backend.dto.question.QuestionResponse;
 import org.com.quora_backend.dto.question.QuestionSearchResponse;
 import org.com.quora_backend.dto.question.UpdateQuestionRequest;
+import org.com.quora_backend.security.UserPrincipal;
 import org.com.quora_backend.service.QuestionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +15,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,8 +26,10 @@ import java.util.List;
 public class QuestionController {
     private final QuestionService questionService;
     @PostMapping
-    public ResponseEntity<QuestionResponse> createQuestion(@Valid @RequestBody CreateQuestionRequest request){
-        QuestionResponse response  = questionService.createQuestion(request);
+    public ResponseEntity<QuestionResponse> createQuestion(
+            @Valid @RequestBody CreateQuestionRequest request,
+            @AuthenticationPrincipal UserPrincipal principal){
+        QuestionResponse response  = questionService.createQuestion(request, principal.getUser().getId());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
