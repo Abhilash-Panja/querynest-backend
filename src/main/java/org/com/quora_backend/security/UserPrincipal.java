@@ -1,5 +1,7 @@
 package org.com.quora_backend.security;
 
+import lombok.Builder;
+import lombok.Getter;
 import org.com.quora_backend.model.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -8,8 +10,13 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
+
+@Builder
+@Getter
+
 // UserPrincipal (wraps your User entity so Spring Security understands it):
 public class UserPrincipal implements UserDetails {
+
     private final User user;
 
     public UserPrincipal(User user) {
@@ -18,7 +25,11 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        return List.of(
+                new SimpleGrantedAuthority(
+                        "ROLE_" + user.getRole().name()
+                )
+        );
     }
 
     @Override
@@ -31,15 +42,23 @@ public class UserPrincipal implements UserDetails {
         return user.getUsername();
     }
 
-    public User getUser() {
-        return user;
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
     }
 
-    // the four boolean methods below are also from UserDetails
-    @Override public boolean isAccountNonExpired() { return true; }
-    @Override public boolean isAccountNonLocked() { return true; }
-    @Override public boolean isCredentialsNonExpired() { return true; }
-    @Override public boolean isEnabled() { return true; }
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
 
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
 
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
 }

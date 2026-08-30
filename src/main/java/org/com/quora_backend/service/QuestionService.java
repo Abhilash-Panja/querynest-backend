@@ -18,7 +18,7 @@ public interface QuestionService {
     QuestionResponse getQuestionById(Long id);
 
     QuestionResponse createQuestion(
-            CreateQuestionRequest createQuestionRequest);
+            CreateQuestionRequest createQuestionRequest, Long userId);
 
     void deletequestionById(Long id);
 

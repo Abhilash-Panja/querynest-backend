@@ -21,7 +21,6 @@ import org.com.quora_backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 @AllArgsConstructor
 @Service
 public class UserServiceImp implements UserService{
@@ -35,11 +34,14 @@ public class UserServiceImp implements UserService{
     @Override
     public UserResponse createUser(CreateUserRequest request) {
 
-        if(userRepository.existsByUsername(request.getUsername())){
+        if (userRepository.existsByUsername(request.getUsername())) {
             throw new UsernameAlreadyExistsException(request.getUsername());
         }
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyExistsException(request.getEmail());
+        }
         // 1. Convert DTO → Entity
-       User user = userMapper.toEntity(request);
+        User user = userMapper.toEntity(request);
         // 2. Save Entity
         User savedUser = userRepository.save(user);
 
@@ -55,11 +57,13 @@ public class UserServiceImp implements UserService{
 
     @Override
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
-        Optional<User> repositoryById= userRepository.findById(id);
-        User user= getUser(id);
-        if(userRepository.existsByUsername(request.getUsername())){
+        User user = getUser(id);
+
+        if (!request.getUsername().equals(user.getUsername())
+                && userRepository.existsByUsername(request.getUsername())) {
             throw new UsernameAlreadyExistsException(request.getUsername());
         }
+
         user.setName(request.getName());
         user.setBio(request.getBio());
         user.setUsername(request.getUsername());
