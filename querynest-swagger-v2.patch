@@ -1,0 +1,586 @@
+diff --git a/build.gradle b/build.gradle
+index 1403b51..0e8ad03 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -20,6 +20,7 @@ repositories {
+ }
+
+ dependencies {
++    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+     implementation 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
+     implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
+     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
+diff --git a/src/main/java/org/com/quora_backend/QuoraBackendApplication.java b/src/main/java/org/com/quora_backend/QuoraBackendApplication.java
+index 8156ff2..8e92d36 100644
+--- a/src/main/java/org/com/quora_backend/QuoraBackendApplication.java
++++ b/src/main/java/org/com/quora_backend/QuoraBackendApplication.java
+@@ -2,7 +2,6 @@ package org.com.quora_backend;
+
+ import org.springframework.boot.SpringApplication;
+ import org.springframework.boot.autoconfigure.SpringBootApplication;
+-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+
+ @SpringBootApplication
+
+diff --git a/src/main/java/org/com/quora_backend/config/OpenApiConfig.java b/src/main/java/org/com/quora_backend/config/OpenApiConfig.java
+new file mode 100644
+index 0000000..9ed3528
+--- /dev/null
++++ b/src/main/java/org/com/quora_backend/config/OpenApiConfig.java
+@@ -0,0 +1,42 @@
++package org.com.quora_backend.config;
++
++import io.swagger.v3.oas.annotations.OpenAPIDefinition;
++import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
++import io.swagger.v3.oas.annotations.info.Contact;
++import io.swagger.v3.oas.annotations.info.Info;
++import io.swagger.v3.oas.annotations.security.SecurityScheme;
++import io.swagger.v3.oas.annotations.servers.Server;
++
++/**
++ * Central OpenAPI / Swagger configuration.
++ *
++ * Once the application is running, docs are available at:
++ *   - Swagger UI : http://localhost:8080/swagger-ui.html
++ *   - OpenAPI JSON: http://localhost:8080/v3/api-docs
++ *   - OpenAPI YAML: http://localhost:8080/v3/api-docs.yaml
++ *
++ * Click "Authorize" in the Swagger UI and paste a raw JWT (no "Bearer " prefix,
++ * springdoc adds it automatically) to call endpoints that require authentication.
++ */
++@OpenAPIDefinition(
++        info = @Info(
++                title = "QueryNest API",
++                version = "v1",
++                description = "REST API for QueryNest — a Quora-style Q&A backend built with Spring Boot. " +
++                        "Supports user management, questions, answers and voting, secured with JWT authentication.",
++                contact = @Contact(name = "Abhilash Panja", url = "https://github.com/Abhilash-Panja/querynest-backend")
++        ),
++        servers = {
++                @Server(url = "/", description = "Default server")
++        },
++        security = @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
++)
++@SecurityScheme(
++        name = "bearerAuth",
++        type = SecuritySchemeType.HTTP,
++        scheme = "bearer",
++        bearerFormat = "JWT",
++        description = "Provide the JWT returned by POST /api/v1/auth/login"
++)
++public class OpenApiConfig {
++}
+diff --git a/src/main/java/org/com/quora_backend/config/SecurityConfig.java b/src/main/java/org/com/quora_backend/config/SecurityConfig.java
+index eb0846f..10770e3 100644
+--- a/src/main/java/org/com/quora_backend/config/SecurityConfig.java
++++ b/src/main/java/org/com/quora_backend/config/SecurityConfig.java
+@@ -30,6 +30,12 @@ public class SecurityConfig {
+                 .sessionManagement(session ->
+                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                 .authorizeHttpRequests(auth -> auth
++                        .requestMatchers(
++                                "/swagger-ui.html",
++                                "/swagger-ui/**",
++                                "/v3/api-docs/**",
++                                "/v3/api-docs.yaml"
++                        ).permitAll()
+                         .requestMatchers("/api/v1/auth/**").permitAll()
+                         .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
+                         .requestMatchers(HttpMethod.GET, "/api/v1/users/check-username", "/api/v1/users/check-email").permitAll()
+diff --git a/src/main/java/org/com/quora_backend/controller/AnswerController.java b/src/main/java/org/com/quora_backend/controller/AnswerController.java
+index 6cf8774..1c71acc 100644
+--- a/src/main/java/org/com/quora_backend/controller/AnswerController.java
++++ b/src/main/java/org/com/quora_backend/controller/AnswerController.java
+@@ -1,10 +1,17 @@
+ package org.com.quora_backend.controller;
+
++import io.swagger.v3.oas.annotations.Operation;
++import io.swagger.v3.oas.annotations.media.Content;
++import io.swagger.v3.oas.annotations.media.Schema;
++import io.swagger.v3.oas.annotations.responses.ApiResponse;
++import io.swagger.v3.oas.annotations.security.SecurityRequirements;
++import io.swagger.v3.oas.annotations.tags.Tag;
+ import jakarta.validation.Valid;
+ import lombok.AllArgsConstructor;
+ import org.com.quora_backend.dto.answer.AnswerResponse;
+ import org.com.quora_backend.dto.answer.CreateAnswerRequest;
+ import org.com.quora_backend.dto.answer.UpdateAnswerRequest;
++import org.com.quora_backend.dto.common.ErrorResponse;
+ import org.com.quora_backend.dto.vote.VoteRequest;
+ import org.com.quora_backend.security.UserPrincipal;
+ import org.com.quora_backend.service.AnswerService;
+@@ -17,10 +24,17 @@ import org.springframework.web.bind.annotation.*;
+ @RestController
+ @RequestMapping("/api/v1")
+ @AllArgsConstructor
++@Tag(name = "Answers", description = "Post, update, delete and vote on answers")
+ public class AnswerController {
+
+     private final AnswerService answerService;
+
++    @Operation(summary = "Post an answer to a question", description = "Requires authentication.")
++    @ApiResponse(responseCode = "201", description = "Answer created")
++    @ApiResponse(responseCode = "400", description = "Validation failed (blank content)",
++            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
++    @ApiResponse(responseCode = "404", description = "Question not found",
++            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+     @PostMapping("/questions/{questionId}/answers")
+     public ResponseEntity<AnswerResponse> createAnswer(
+             @PathVariable Long questionId,
+@@ -31,12 +45,21 @@ public class AnswerController {
+         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+     }
+
++    @Operation(summary = "Get an answer by id")
++    @ApiResponse(responseCode = "200", description = "Answer found")
++    @ApiResponse(responseCode = "404", description = "Answer not found",
++            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
++    @SecurityRequirements // public endpoint
+     @GetMapping("/answers/{id}")
+     public ResponseEntity<AnswerResponse> getAnswerById(@PathVariable Long id) {
+         AnswerResponse response = answerService.getAnswerById(id);
+         return ResponseEntity.ok(response);
+     }
+
++    @Operation(summary = "Update an answer",
++            description = "Requires the caller to be the answer's owner or an ADMIN.")
++    @ApiResponse(responseCode = "200", description = "Answer updated")
++    @ApiResponse(responseCode = "403", description = "Not the owner and not an admin")
+     @PutMapping("/answers/{id}")
+     @PreAuthorize("hasRole('ADMIN') or @answerService.isOwnedByCurrentUser(#id, principal.user.id)")
+     public ResponseEntity<AnswerResponse> updateAnswer(
+@@ -48,6 +71,10 @@ public class AnswerController {
+         return ResponseEntity.ok(response);
+     }
+
++    @Operation(summary = "Delete an answer",
++            description = "Requires the caller to be the answer's owner or an ADMIN.")
++    @ApiResponse(responseCode = "204", description = "Answer deleted")
++    @ApiResponse(responseCode = "403", description = "Not the owner and not an admin")
+     @DeleteMapping("/answers/{id}")
+     @PreAuthorize("hasRole('ADMIN') or @answerService.isOwnedByCurrentUser(#id, principal.user.id)")
+     public ResponseEntity<Void> deleteAnswer(
+@@ -58,6 +85,8 @@ public class AnswerController {
+         return ResponseEntity.noContent().build();
+     }
+
++    @Operation(summary = "Upvote or downvote an answer", description = "Requires authentication.")
++    @ApiResponse(responseCode = "200", description = "Vote recorded, updated answer returned")
+     @PostMapping("/answers/{id}/vote")
+     public ResponseEntity<AnswerResponse> voteAnswer(
+             @PathVariable Long id,
+diff --git a/src/main/java/org/com/quora_backend/controller/AuthController.java b/src/main/java/org/com/quora_backend/controller/AuthController.java
+index f66d803..9f3c084 100644
+--- a/src/main/java/org/com/quora_backend/controller/AuthController.java
++++ b/src/main/java/org/com/quora_backend/controller/AuthController.java
+@@ -1,8 +1,15 @@
+ package org.com.quora_backend.controller;
+
++import io.swagger.v3.oas.annotations.Operation;
++import io.swagger.v3.oas.annotations.media.Content;
++import io.swagger.v3.oas.annotations.media.Schema;
++import io.swagger.v3.oas.annotations.responses.ApiResponse;
++import io.swagger.v3.oas.annotations.security.SecurityRequirements;
++import io.swagger.v3.oas.annotations.tags.Tag;
+ import jakarta.validation.Valid;
+ import org.com.quora_backend.dto.auth.AuthResponse;
+ import org.com.quora_backend.dto.auth.LoginRequest;
++import org.com.quora_backend.dto.common.ErrorResponse;
+ import org.com.quora_backend.security.UserPrincipal;
+ import org.com.quora_backend.service.JwtService;
+ import org.springframework.http.HttpStatus;
+@@ -17,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
+
+ @RestController
+ @RequestMapping("/api/v1/auth")
++@Tag(name = "Auth", description = "Authentication endpoints")
+ public class AuthController {
+
+     private final AuthenticationManager authenticationManager;
+@@ -27,6 +35,15 @@ public class AuthController {
+         this.jwtService = jwtService;
+     }
+
++    @Operation(
++            summary = "Log in and obtain a JWT",
++            description = "Authenticates a user with username and password and returns a signed JWT " +
++                    "to be used as a Bearer token on subsequent requests."
++    )
++    @ApiResponse(responseCode = "200", description = "Authenticated successfully, JWT returned")
++    @ApiResponse(responseCode = "401", description = "Invalid username or password",
++            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
++    @SecurityRequirements // no auth required to log in
+     @PostMapping("/login")
+     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+         Authentication authentication = authenticationManager.authenticate(
+diff --git a/src/main/java/org/com/quora_backend/controller/QuestionController.java b/src/main/java/org/com/quora_backend/controller/QuestionController.java
+index 5f51539..2f56388 100644
+--- a/src/main/java/org/com/quora_backend/controller/QuestionController.java
++++ b/src/main/java/org/com/quora_backend/controller/QuestionController.java
+@@ -1,7 +1,15 @@
+ package org.com.quora_backend.controller;
+
++import io.swagger.v3.oas.annotations.Operation;
++import io.swagger.v3.oas.annotations.Parameter;
++import io.swagger.v3.oas.annotations.media.Content;
++import io.swagger.v3.oas.annotations.media.Schema;
++import io.swagger.v3.oas.annotations.responses.ApiResponse;
++import io.swagger.v3.oas.annotations.security.SecurityRequirements;
++import io.swagger.v3.oas.annotations.tags.Tag;
+ import jakarta.validation.Valid;
+ import lombok.AllArgsConstructor;
++import org.com.quora_backend.dto.common.ErrorResponse;
+ import org.com.quora_backend.dto.question.CreateQuestionRequest;
+ import org.com.quora_backend.dto.question.QuestionResponse;
+ import org.com.quora_backend.dto.question.QuestionSearchResponse;
+@@ -23,8 +31,15 @@ import java.util.List;
+ @RestController
+ @AllArgsConstructor
+ @RequestMapping("/api/v1/questions")
++@Tag(name = "Questions", description = "Ask, browse, search, update and delete questions")
+ public class QuestionController {
+     private final QuestionService questionService;
++
++    @Operation(summary = "Ask a new question", description = "Requires authentication.")
++    @ApiResponse(responseCode = "201", description = "Question created")
++    @ApiResponse(responseCode = "400", description = "Validation failed (blank title/description)",
++            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
++    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+     @PostMapping
+     public ResponseEntity<QuestionResponse> createQuestion(
+             @Valid @RequestBody CreateQuestionRequest request,
+@@ -34,11 +49,22 @@ public class QuestionController {
+                 .status(HttpStatus.CREATED)
+                 .body(response);
+     }
++
++    @Operation(summary = "Get a question by id")
++    @ApiResponse(responseCode = "200", description = "Question found")
++    @ApiResponse(responseCode = "404", description = "Question not found",
++            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
++    @SecurityRequirements // public endpoint
+     @GetMapping("/{id}")
+-    public ResponseEntity<QuestionResponse> getQuestionById(@PathVariable Long id){
++    public ResponseEntity<QuestionResponse> getQuestionById(@Parameter(description = "Question id") @PathVariable Long id){
+         QuestionResponse response = questionService.getQuestionById(id);
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
++
++    @Operation(summary = "Update a question",
++            description = "Requires the caller to be the question's owner or an ADMIN.")
++    @ApiResponse(responseCode = "200", description = "Question updated")
++    @ApiResponse(responseCode = "403", description = "Not the owner and not an admin")
+     @PutMapping("/{id}")
+     @PreAuthorize("hasRole('ADMIN') or @questionService.isOwnedByCurrentUser(#id, authentication.principal.user.id)")
+     public ResponseEntity<QuestionResponse> updateQuestion(@PathVariable Long id,
+@@ -46,17 +72,30 @@ public class QuestionController {
+         QuestionResponse response = questionService.updateQuestion(id, updateQuestionRequest);
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
++
++    @Operation(summary = "Delete a question",
++            description = "Requires the caller to be the question's owner or an ADMIN.")
++    @ApiResponse(responseCode = "204", description = "Question deleted")
++    @ApiResponse(responseCode = "403", description = "Not the owner and not an admin")
+     @DeleteMapping("/{id}")
+     @PreAuthorize("hasRole('ADMIN') or @questionService.isOwnedByCurrentUser(#id, authentication.principal.user.id)")
+     public ResponseEntity<Void> deletequestionById(@PathVariable Long id){
+         questionService.deletequestionById(id);
+         return ResponseEntity.noContent().build();
+     }
++
++    @Operation(summary = "Search questions by keyword")
++    @SecurityRequirements // public endpoint
+     @GetMapping("/search")
+-    public ResponseEntity<List<QuestionSearchResponse>> searchQuestions(@RequestParam String keyword){
++    public ResponseEntity<List<QuestionSearchResponse>> searchQuestions(
++            @Parameter(description = "Keyword to match against question title/body") @RequestParam String keyword){
+         List<QuestionSearchResponse> response = questionService.searchQuestions(keyword);
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
++
++    @Operation(summary = "List all questions",
++            description = "Paginated and sortable. Defaults to 10 per page, newest first.")
++    @SecurityRequirements // public endpoint
+     @GetMapping
+     public ResponseEntity<Page<QuestionResponse>> getAllQuestions(
+             @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
+diff --git a/src/main/java/org/com/quora_backend/controller/UserController.java b/src/main/java/org/com/quora_backend/controller/UserController.java
+index 083909c..a9e94e4 100644
+--- a/src/main/java/org/com/quora_backend/controller/UserController.java
++++ b/src/main/java/org/com/quora_backend/controller/UserController.java
+@@ -1,9 +1,17 @@
+ package org.com.quora_backend.controller;
+
++import io.swagger.v3.oas.annotations.Operation;
++import io.swagger.v3.oas.annotations.Parameter;
++import io.swagger.v3.oas.annotations.media.Content;
++import io.swagger.v3.oas.annotations.media.Schema;
++import io.swagger.v3.oas.annotations.responses.ApiResponse;
++import io.swagger.v3.oas.annotations.security.SecurityRequirements;
++import io.swagger.v3.oas.annotations.tags.Tag;
+ import jakarta.validation.Valid;
+ import lombok.AllArgsConstructor;
+ import org.com.quora_backend.dto.answer.AnswerCountResponse;
+ import org.com.quora_backend.dto.answer.AnswerResponse;
++import org.com.quora_backend.dto.common.ErrorResponse;
+ import org.com.quora_backend.dto.question.QuestionCountResponse;
+ import org.com.quora_backend.dto.question.QuestionSearchResponse;
+ import org.com.quora_backend.dto.user.*;
+@@ -18,9 +26,17 @@ import java.util.List;
+ @RestController
+ @RequestMapping("/api/v1/users")
+ @AllArgsConstructor
++@Tag(name = "Users", description = "User profile management and lookups")
+ public class UserController {
+     private final UserService userService;
+
++    @Operation(summary = "Register a new user")
++    @ApiResponse(responseCode = "201", description = "User created")
++    @ApiResponse(responseCode = "400", description = "Validation failed (e.g. missing name, weak password)",
++            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
++    @ApiResponse(responseCode = "409", description = "Username or email already exists",
++            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
++    @SecurityRequirements // public endpoint
+     @PostMapping
+     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request){
+         UserResponse response  = userService.createUser(request);
+@@ -28,11 +44,23 @@ public class UserController {
+                 .status(HttpStatus.CREATED)
+                 .body(response);
+     }
++
++    @Operation(summary = "Get a user by id")
++    @ApiResponse(responseCode = "200", description = "User found")
++    @ApiResponse(responseCode = "404", description = "User not found",
++            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
++    @SecurityRequirements // public endpoint
+     @GetMapping("/{id}")
+-    public ResponseEntity<UserResponse> getUser(@PathVariable Long id){
++    public ResponseEntity<UserResponse> getUser(@Parameter(description = "User id") @PathVariable Long id){
+          UserResponse response = userService.getUserById(id);
+          return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
++
++    @Operation(summary = "Fully update a user",
++            description = "Requires the caller to be the owner of the account or an ADMIN.")
++    @ApiResponse(responseCode = "200", description = "User updated")
++    @ApiResponse(responseCode = "403", description = "Not the owner and not an admin")
++    @ApiResponse(responseCode = "404", description = "User not found")
+     @PutMapping("/{id}")
+     @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.user.id")
+     public ResponseEntity<UserResponse> updateUser(@PathVariable Long id,
+@@ -40,6 +68,12 @@ public class UserController {
+         UserResponse response = userService.updateUser(id, updateUserRequest);
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
++
++    @Operation(summary = "Partially update a user",
++            description = "Requires the caller to be the owner of the account or an ADMIN.")
++    @ApiResponse(responseCode = "200", description = "User updated")
++    @ApiResponse(responseCode = "403", description = "Not the owner and not an admin")
++    @ApiResponse(responseCode = "404", description = "User not found")
+     @PatchMapping("/{id}")
+     @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.user.id")
+     public ResponseEntity<UserResponse> patchUser(@PathVariable Long id,
+@@ -48,6 +82,10 @@ public class UserController {
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
+
++    @Operation(summary = "Delete a user",
++            description = "Requires the caller to be the owner of the account or an ADMIN.")
++    @ApiResponse(responseCode = "204", description = "User deleted")
++    @ApiResponse(responseCode = "403", description = "Not the owner and not an admin")
+     @DeleteMapping("/{id}")
+     @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.user.id")
+     public ResponseEntity<Void> deleteUser(@PathVariable Long id){
+@@ -55,36 +93,46 @@ public class UserController {
+         return ResponseEntity.noContent().build();
+     }
+
++    @Operation(summary = "List questions asked by a user")
++    @SecurityRequirements // public endpoint
+     @GetMapping("/{id}/questions")
+     public ResponseEntity<List<QuestionSearchResponse>> getUserQuestions(@PathVariable Long id){
+         List<QuestionSearchResponse> response = userService.getUserQuestions(id);
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
+
++    @Operation(summary = "List answers written by a user")
++    @SecurityRequirements // public endpoint
+     @GetMapping("/{id}/answers")
+     public ResponseEntity<List<AnswerResponse>> getUserAnswers(@PathVariable Long id){
+         List<AnswerResponse> response = userService.getUserAnswers(id);
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
+
++    @Operation(summary = "Check whether a username is available")
++    @SecurityRequirements // public endpoint
+     @GetMapping("/check-username")
+     public ResponseEntity<UsernameAvailabilityResponse> checkUsername(@RequestParam String username){
+         UsernameAvailabilityResponse response = userService.checkUsernameAvailability(username);
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
+
++    @Operation(summary = "Check whether an email is available")
++    @SecurityRequirements // public endpoint
+     @GetMapping("/check-email")
+     public ResponseEntity<EmailAvailabilityResponse> checkEmail(@RequestParam String email){
+         EmailAvailabilityResponse response = userService.checkEmailAvailability(email);
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
+
++    @Operation(summary = "Get the number of questions asked by a user")
+     @GetMapping("/{id}/question-count")
+     public ResponseEntity<QuestionCountResponse> getUserQuestionCount(@PathVariable Long id){
+         QuestionCountResponse response = userService.getUserQuestionCount(id);
+         return ResponseEntity.status(HttpStatus.OK).body(response);
+     }
+
++    @Operation(summary = "Get the number of answers written by a user")
+     @GetMapping("/{id}/answer-count")
+     public ResponseEntity<AnswerCountResponse> getUserAnswerCount(@PathVariable Long id){
+         AnswerCountResponse response = userService.getUserAnswerCount(id);
+diff --git a/src/main/java/org/com/quora_backend/dto/answer/CreateAnswerRequest.java b/src/main/java/org/com/quora_backend/dto/answer/CreateAnswerRequest.java
+index 9d3ec13..aeb96f3 100644
+--- a/src/main/java/org/com/quora_backend/dto/answer/CreateAnswerRequest.java
++++ b/src/main/java/org/com/quora_backend/dto/answer/CreateAnswerRequest.java
+@@ -2,6 +2,7 @@ package org.com.quora_backend.dto.answer;
+
+
+
++import io.swagger.v3.oas.annotations.media.Schema;
+ import jakarta.validation.constraints.NotBlank;
+ import lombok.*;
+
+@@ -13,9 +14,15 @@ import lombok.*;
+ public class CreateAnswerRequest {
+
+     @NotBlank(message = "content cannot be blank")
++    @Schema(example = "JWT validation is stateless: the server verifies the signature using its secret key, so it never needs to query the database to trust the token's claims.")
+     private String content;
+
++    // Not read by the service layer — questionId comes from the URL path and
++    // userId from the authenticated principal. Hidden so the docs don't imply
++    // callers need to set these.
++    @Schema(hidden = true)
+     private Long questionId;
+
++    @Schema(hidden = true)
+     private Long userId;
+ }
+diff --git a/src/main/java/org/com/quora_backend/dto/auth/LoginRequest.java b/src/main/java/org/com/quora_backend/dto/auth/LoginRequest.java
+index 28b3faa..c3c0a49 100644
+--- a/src/main/java/org/com/quora_backend/dto/auth/LoginRequest.java
++++ b/src/main/java/org/com/quora_backend/dto/auth/LoginRequest.java
+@@ -1,5 +1,6 @@
+ package org.com.quora_backend.dto.auth;
+
++import io.swagger.v3.oas.annotations.media.Schema;
+ import jakarta.validation.constraints.NotBlank;
+ import lombok.*;
+
+@@ -11,8 +12,10 @@ import lombok.*;
+ public class LoginRequest {
+
+     @NotBlank(message = "Username cannot be blank")
++    @Schema(example = "jane_doe")
+     private String username;
+
+     @NotBlank(message = "Password cannot be blank")
++    @Schema(example = "SecurePass123!")
+     private String password;
+ }
+\ No newline at end of file
+diff --git a/src/main/java/org/com/quora_backend/dto/question/CreateQuestionRequest.java b/src/main/java/org/com/quora_backend/dto/question/CreateQuestionRequest.java
+index 8ea3508..330c2ae 100644
+--- a/src/main/java/org/com/quora_backend/dto/question/CreateQuestionRequest.java
++++ b/src/main/java/org/com/quora_backend/dto/question/CreateQuestionRequest.java
+@@ -2,6 +2,7 @@ package org.com.quora_backend.dto.question;
+
+
+
++import io.swagger.v3.oas.annotations.media.Schema;
+ import jakarta.validation.constraints.NotBlank;
+ import lombok.*;
+
+@@ -13,8 +14,10 @@ import lombok.*;
+ public class CreateQuestionRequest {
+
+     @NotBlank(message = "title cannot be blank")
++    @Schema(example = "How does JWT authentication work?")
+     private String title;
+
+     @NotBlank(message = "description cannot be blank")
++    @Schema(example = "I'm trying to understand how JWTs are validated on each request without hitting the database every time.")
+     private String description;
+ }
+diff --git a/src/main/java/org/com/quora_backend/dto/user/CreateUserRequest.java b/src/main/java/org/com/quora_backend/dto/user/CreateUserRequest.java
+index 1e1d80c..3940a6d 100644
+--- a/src/main/java/org/com/quora_backend/dto/user/CreateUserRequest.java
++++ b/src/main/java/org/com/quora_backend/dto/user/CreateUserRequest.java
+@@ -1,5 +1,6 @@
+ package org.com.quora_backend.dto.user;
+
++import io.swagger.v3.oas.annotations.media.Schema;
+ import jakarta.validation.constraints.Email;
+ import jakarta.validation.constraints.NotBlank;
+ import jakarta.validation.constraints.Pattern;
+@@ -24,19 +25,24 @@ public class CreateUserRequest {
+             regexp = "^[A-Za-z][A-Za-z0-9_]*$",
+             message = "Username must start with a letter and contain only letters, numbers, and underscores"
+     )
++    @Schema(example = "jane_doe")
+     private String username;
+
+     @NotBlank(message = "Name cannot be blank")
++    @Schema(example = "Jane Doe")
+     private String name;
+
+     @Email(message = "Invalid email format")
+     @NotBlank(message = "Email cannot be blank")
++    @Schema(example = "jane.doe@example.com")
+     private String email;
+
+     @Size(min = 10, max = 100, message = "Bio should contain 10-100 characters")
++    @Schema(example = "Backend developer interested in distributed systems.")
+     private String bio;
+
+     @NotBlank(message = "Password cannot be blank")
+     @Size(min = 8, message = "Password must be at least 8 characters")
++    @Schema(example = "SecurePass123!")
+     private String password;
+ }
+diff --git a/src/main/resources/application-prod.properties b/src/main/resources/application-prod.properties
+new file mode 100644
+index 0000000..c08d80a
+--- /dev/null
++++ b/src/main/resources/application-prod.properties
+@@ -0,0 +1,5 @@
++# Activate with: --spring.profiles.active=prod
++# Disables the Swagger UI and raw OpenAPI spec so the full API surface
++# (paths, DTO field names, validation rules) isn't exposed publicly.
++springdoc.swagger-ui.enabled=false
++springdoc.api-docs.enabled=false
+diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
+index 076d71b..3d612c7 100644
+--- a/src/main/resources/application.properties
++++ b/src/main/resources/application.properties
+@@ -13,5 +13,13 @@ config.stopBubbling = true
+ lombok.jacksonized.jacksonVersion += 3
+
+ spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
+-jwt.secret=${JWT_SECRET}
+-jwt.expiration-ms=${JWT_EXPIRATION_MS:3600000}
+\ No newline at end of file
++jwt.secret=${JWT_SECRET:dev-only-local-secret-change-me-9f3a7c2b1e}
++jwt.expiration-ms=${JWT_EXPIRATION_MS:3600000}
++
++# --- Swagger / OpenAPI (springdoc) ---
++springdoc.api-docs.path=/v3/api-docs
++springdoc.swagger-ui.path=/swagger-ui.html
++springdoc.swagger-ui.operationsSorter=method
++springdoc.swagger-ui.tagsSorter=alpha
++springdoc.swagger-ui.tryItOutEnabled=true
++springdoc.swagger-ui.persistAuthorization=true
+\ No newline at end of file
